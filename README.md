@@ -1,10 +1,5 @@
 # DisputeIQ — AI-Powered Dispute Investigation & Evidence Intelligence Layer
 
-[![Track](https://img.shields.io/badge/Razorpay_Internship_2027-Track_2:_AI_Risk_Manager-blue.svg)](https://razorpay.com)
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/React-18.2+-61DAFB?logo=react&logoColor=white)](https://reactjs.org)
-[![Gemini](https://img.shields.io/badge/AI-Google_Gemini-8E44AD?logo=google&logoColor=white)](https://deepmind.google/technologies/gemini/)
 
 > **Official Project Objective:** *"Stop the merchant losing money to fraud, returns and chargebacks."*
 
@@ -76,8 +71,9 @@ Supported Dispute Category: **Goods / Services Not Received**
 
 ## 5. Technology Stack
 - **Backend**: Python 3.11+, FastAPI, Pydantic v2
-- **Database**: SQLite (via standard Python `sqlite3` + JSON fields)
-- **Frontend**: React (Vite), Tailwind CSS, Axios, Lucide React Icons
+- **Database**: SQLite. Identity tables via SQLAlchemy 2.0; dispute pipeline via `sqlite3` + JSON fields. Schema managed by Alembic migrations
+- **Auth**: JWT (PyJWT) bearer tokens, Argon2id password hashing, permission-based RBAC, tenant isolation
+- **Frontend**: React (Vite), React Router, Tailwind CSS, Axios, Lucide React Icons
 - **AI Service**: Google Gemini API via `google-genai` (wrapped inside `ai_service.py`)
 - **Testing & Evaluation**: Pytest, standalone evaluation benchmark pipeline
 
@@ -92,8 +88,17 @@ DisputeIQ/
 ├── .env.example                 # Environment variables configuration template
 ├── backend/
 │   ├── app/
-│   │   ├── main.py              # FastAPI app initialization & CORS setup
-│   │   ├── api/routes.py        # REST API endpoints
+│   │   ├── main.py              # FastAPI app, lifespan (migrate/seed), CORS, error handlers
+│   │   ├── core/
+│   │   │   ├── config.py        # Settings from .env (secrets, CORS, DB path)
+│   │   │   ├── database.py      # SQLAlchemy engine/session (identity layer)
+│   │   │   ├── security.py      # Argon2id hashing, JWT issue/verify
+│   │   │   ├── migrations.py    # Programmatic Alembic runner
+│   │   │   └── errors.py        # 400/401/403/404/409 error types
+│   │   ├── auth/                # /auth routes, login/register service, dependencies, RBAC permissions
+│   │   ├── organizations/       # Organization model, /organizations/me routes
+│   │   ├── users/               # User + Role model, member management routes
+│   │   ├── api/routes.py        # Dispute endpoints (authenticated, tenant-scoped)
 │   │   ├── models/domain.py     # Pydantic domain entities
 │   │   ├── services/
 │   │   │   ├── verification_engine.py   # Deterministic verification functions
@@ -109,14 +114,24 @@ DisputeIQ/
 │   │   │   ├── prompts.py               # System prompt & 13 guardrail directives
 │   │   │   └── guardrails.py            # Pydantic JSON parser & validator
 │   │   └── database/
-│   │       ├── db.py                    # SQLite persistence layer
-│   │       └── seed.py                  # Database seeder
+│   │       ├── db.py                    # Tenant-scoped SQLite persistence layer
+│   │       └── seed.py                  # Demo dataset seeder (into the "Demo Merchant" org)
+│   ├── migrations/              # Alembic migrations (0001 baseline, 0002 identity & tenancy)
+│   ├── alembic.ini
+│   ├── manage.py                # CLI: migrate | seed | create-user
 │   └── tests/
-│       └── test_verification.py         # Pytest verification test suite
+│       ├── test_verification.py         # Deterministic verification engine
+│       ├── test_auth.py                 # Registration, login, token validation
+│       ├── test_rbac.py                 # Role/permission enforcement
+│       ├── test_tenant_isolation.py     # PERMANENT cross-tenant security regression tests
+│       └── test_migrations.py           # Fresh + legacy DB migrations
+├── pytest.ini
 ├── frontend/
 │   └── src/
+│       ├── auth/                # AuthContext, token storage, login/register layout, roles
+│       ├── routes/              # ProtectedRoute / PublicOnlyRoute
 │       ├── components/          # React UI components (EvidenceMatrix, VerificationList, etc.)
-│       └── pages/               # DisputeList & InvestigationDetail pages
+│       └── pages/               # Login, Register, Dashboard, Team, DisputeList, InvestigationDetail
 ├── data/synthetic/              # Seed generator (40 disputes across 5 archetypes)
 └── evaluation/                  # Evaluation pipeline & held-out test suite
 ```
@@ -166,26 +181,33 @@ Output saved to `evaluation/results/summary.json`:
 ### Backend Setup
 ```bash
 # Clone and enter repository
-cd Razor_pay
+cd DisputeIQ
 
 # Create virtual environment & install requirements
 python -m venv venv
 venv\Scripts\activate
 pip install -r backend/requirements.txt
 
-# Create .env file
+# Create .env file, then set JWT_SECRET_KEY (and GEMINI_API_KEY if you have one)
 cp .env.example .env
+python -c "import secrets; print(secrets.token_urlsafe(64))"
 
-# Seed database with 40 synthetic dispute cases
-python backend/app/database/seed.py
+# Apply migrations (safe on an existing disputeiq.db: data is preserved and
+# assigned to the "Demo Merchant" organization) and seed the 40 demo disputes
+python backend/manage.py migrate
+python backend/manage.py seed
 
-# Run pytest unit verification suite
-python -m pytest backend/tests
+# Create a login for the Demo Merchant organization (prompts for a password)
+python backend/manage.py create-user --org demo-merchant --email you@yourcompany.com --name "Your Name" --role ADMIN
+
+# Run the test suite (auth, RBAC, tenant isolation, migrations, verification)
+python -m pytest
 
 # Start FastAPI backend server
-python backend/app/main.py
+python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000 --reload
 ```
-Backend server will start at `http://localhost:8000`.
+Backend server will start at `http://localhost:8000`, with interactive API docs at `http://localhost:8000/docs`.
+Use **Authorize** in the docs with the `access_token` from `POST /auth/login`.
 
 ### Frontend Setup
 ```bash
@@ -193,7 +215,35 @@ cd frontend
 npm install
 npm run dev
 ```
-Frontend app will start at `http://localhost:3000`.
+Frontend app will start at `http://localhost:3000`. API calls go through the Vite proxy at `/api` (override with `VITE_API_BASE_URL`).
+
+### Evidence Uploads (Phase 3)
+Evidence uploads are organization-scoped and stored locally outside SQLite. The database stores provenance metadata and a SHA-256 content hash; it does not claim that an uploaded artifact is authentic.
+
+- Allowed formats: PDF, PNG, JPG/JPEG, GIF, WEBP, JSON, CSV, and TXT
+- Default maximum size: 10 MiB (`EVIDENCE_MAX_FILE_SIZE`)
+- Local storage: `storage/evidence` (override with `EVIDENCE_STORAGE_PATH`)
+- Uploads use generated storage keys; original filenames are metadata only
+- Artifacts are soft-deleted and remain auditable
+
+### Document Intelligence (Phase 4)
+Evidence can be processed from the dispute detail page. Text/JSON/CSV and text-layer PDFs use deterministic local extraction; image evidence uses the PaddleOCR adapter. Processing stores raw text, page/block layout, document classification, structured Pydantic extraction, confidence metadata, and processor version without treating extraction as verification. Failed processing can be retried. VLM fallback is disabled by default and can be enabled with `ENABLE_VLM_PROCESSING=true`.
+
+---
+
+## Multi-Tenancy & Security (Phase 1)
+
+```
+JWT (sub = user id only) → get_current_user() loads user from DB
+  → user.organization_id  → every query filtered by organization_id
+```
+
+- **Organizations** are tenants; every **user** belongs to exactly one. Roles: `ADMIN`, `INVESTIGATOR`, `ANALYST`, `VIEWER`, mapped to permissions in `backend/app/auth/permissions.py`.
+- The backend **never accepts an organization id from the client**. The tenant is always the authenticated user's organization, loaded from the database on each request, so role changes and deactivation take effect immediately.
+- Tenant-scoped data-access functions require `organization_id` as a keyword argument, and writes refuse records without one.
+- Another tenant's resources return **404**, identical to non-existent ones, so their existence isn't revealed.
+- Audit events record `organization_id`, `actor_user_id`, `resource_type`, and `resource_id`. Logins, failed logins, user and organization changes, and every investigation step are attributed.
+- `backend/tests/test_tenant_isolation.py` is the permanent regression suite for these guarantees.
 
 ---
 
@@ -215,5 +265,3 @@ Frontend app will start at `http://localhost:3000`.
 
 ---
 
-## 12. License & Author
-Built for **Razorpay Internship 2027 — Track 2: AI Risk Manager**.

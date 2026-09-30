@@ -7,33 +7,42 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'monospace'],
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', '"Segoe UI"', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+      },
+      fontSize: {
+        '2xs': ['11px', '16px'],
       },
       colors: {
-        dark: {
-          base: '#070b14',
-          card: '#0e1626',
-          border: '#1b2a47',
-          hover: '#152238',
-          accent: '#1e3a8a',
+        // Surfaces (darkest → lightest)
+        canvas: '#0a0d13',
+        surface: '#10141c',
+        raised: {
+          DEFAULT: '#161b25',
+          hover: '#1c2230',
         },
-        brand: {
-          50: '#eef6ff',
-          100: '#e0effe',
-          400: '#38bdf8',
-          500: '#0284c7',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          900: '#0f172a',
-        }
+        // Borders
+        line: {
+          DEFAULT: '#222937',
+          strong: '#303849',
+        },
+        // Text
+        ink: {
+          DEFAULT: '#e8ebf1',
+          muted: '#9aa3b3',
+          subtle: '#6a7385',
+        },
+        // Brand accent
+        accent: {
+          DEFAULT: '#3b82f6',
+          hover: '#2f70e4',
+          soft: '#93bbfb',
+        },
       },
       boxShadow: {
-        'glow-blue': '0 0 25px -5px rgba(37, 99, 235, 0.25)',
-        'glow-rose': '0 0 25px -5px rgba(244, 63, 94, 0.25)',
-        'glow-emerald': '0 0 25px -5px rgba(16, 185, 129, 0.25)',
-        'glow-amber': '0 0 25px -5px rgba(245, 158, 11, 0.25)',
-      }
+        card: 'inset 0 1px 0 0 rgb(255 255 255 / 0.03), 0 1px 2px 0 rgb(0 0 0 / 0.35)',
+        pop: '0 24px 64px -16px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.04)',
+      },
     },
   },
   plugins: [],

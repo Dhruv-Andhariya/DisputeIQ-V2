@@ -1,53 +1,77 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { AuthProvider, PERMISSIONS } from './auth/AuthContext';
+import ProtectedRoute, { PublicOnlyRoute } from './routes/ProtectedRoute';
 import Navbar from './components/Navbar';
+import Dashboard from './pages/Dashboard';
 import DisputeList from './pages/DisputeList';
 import InvestigationDetail from './pages/InvestigationDetail';
-import { triggerDemoFailure } from './api';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Team from './pages/Team';
+import DomainWorkspace from './pages/DomainWorkspace';
 
-export default function App() {
-  const [activePage, setActivePage] = useState('list');
-  const [selectedDisputeId, setSelectedDisputeId] = useState(null);
-  const [failureTriggeredCount, setFailureTriggeredCount] = useState(0);
-
-  const handleSelectDispute = (disputeId) => {
-    setSelectedDisputeId(disputeId);
-    setActivePage('detail');
-  };
-
-  const handleTriggerFailure = async (disputeId) => {
-    try {
-      await triggerDemoFailure(disputeId);
-      setFailureTriggeredCount((prev) => prev + 1);
-      setActivePage('detail');
-    } catch (err) {
-      alert('Failed to simulate system failure scenario.');
-    }
-  };
-
+function AppLayout() {
   return (
-    <div className="min-h-screen bg-[#0b132b] text-slate-100 font-sans flex flex-col">
-      <Navbar
-        activePage={activePage}
-        setActivePage={setActivePage}
-        onTriggerFailure={handleTriggerFailure}
-        currentDisputeId={selectedDisputeId}
-      />
+    <div className="flex min-h-screen flex-col bg-canvas text-ink">
+      <Navbar />
 
       <main className="flex-1">
-        {activePage === 'list' ? (
-          <DisputeList onSelectDispute={handleSelectDispute} />
-        ) : (
-          <InvestigationDetail
-            disputeId={selectedDisputeId}
-            onBack={() => setActivePage('list')}
-            failureModeTriggered={failureTriggeredCount}
-          />
-        )}
+        <Outlet />
       </main>
 
-      <footer className="border-t border-slate-800 bg-slate-950 py-4 text-center text-xs font-mono text-slate-400">
-        DisputeIQ AI Risk Manager • Razorpay Internship 2027 Track 2 • Powered by FastAPI & Gemini
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-5 text-xs text-ink-subtle sm:px-6 lg:px-8">
+          <span>DisputeIQ AI Risk Manager</span>
+          <span>Powered by FastAPI &amp; Gemini</span>
+        </div>
       </footer>
     </div>
+  );
+}
+
+function DisputeListRoute() {
+  const navigate = useNavigate();
+  return <DisputeList onSelectDispute={(id) => navigate(`/disputes/${id}`)} />;
+}
+
+function InvestigationRoute() {
+  const { disputeId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  return (
+    <InvestigationDetail
+      disputeId={disputeId}
+      onBack={() => navigate('/disputes')}
+      failureModeTriggered={location.state?.refresh ?? 0}
+    />
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
+          <Route path="/register" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
+
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="disputes" element={<DisputeListRoute />} />
+              <Route path="disputes/:disputeId" element={<InvestigationRoute />} />
+              <Route path="merchant-data" element={<DomainWorkspace />} />
+              <Route
+                path="team"
+                element={<ProtectedRoute permission={PERMISSIONS.MANAGE_USERS}><Team /></ProtectedRoute>}
+              />
+            </Route>
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }

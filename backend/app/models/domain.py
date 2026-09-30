@@ -65,6 +65,7 @@ class Payment(BaseModel):
     status: str = "captured"
     method: str = "card"
     created_at: str
+    organization_id: Optional[str] = None
 
 
 class OrderItem(BaseModel):
@@ -84,6 +85,7 @@ class Order(BaseModel):
     customer_email: str
     customer_name: str
     created_at: str
+    organization_id: Optional[str] = None
 
 
 class Delivery(BaseModel):
@@ -98,6 +100,7 @@ class Delivery(BaseModel):
     signed_by: Optional[str] = None
     delivery_address: str
     created_at: str
+    organization_id: Optional[str] = None
 
 
 class Evidence(BaseModel):
@@ -109,12 +112,13 @@ class Evidence(BaseModel):
     content: Dict[str, Any]
     verification_status: EvidenceState = EvidenceState.FOUND
     created_at: str
+    organization_id: Optional[str] = None
 
 
 class Dispute(BaseModel):
     dispute_id: str
     payment_id: str
-    merchant_id: str
+    merchant_id: str  # payment-gateway merchant account reference (not the tenant key)
     amount: float
     currency: str = "INR"
     reason: DisputeReason = DisputeReason.GOODS_SERVICES_NOT_RECEIVED
@@ -123,6 +127,7 @@ class Dispute(BaseModel):
     case_type: str = "STRONG_CASE" # STRONG_CASE, WEAK_CASE, CONTRADICTORY_CASE, MISSING_EVIDENCE_CASE, EDGE_CASE
     created_at: str
     updated_at: str
+    organization_id: Optional[str] = None  # owning tenant
 
 
 # Verification Engine Output Models
@@ -198,14 +203,22 @@ class Investigation(BaseModel):
     decision: DecisionResult
     status: str = "COMPLETED"
     created_at: str
+    organization_id: Optional[str] = None
 
 
 # Audit Event Entity
 
 class AuditEvent(BaseModel):
     event_id: str
-    dispute_id: str
+    dispute_id: Optional[str] = None  # None for non-dispute events (login, user management)
     event_type: str  # DISPUTE_RECEIVED, EVIDENCE_RETRIEVED, EVIDENCE_VERIFIED, EVIDENCE_CONFLICT, TIMELINE_CREATED, AI_ANALYSIS_COMPLETED, HUMAN_REVIEW_REQUESTED, HUMAN_APPROVED, HUMAN_REJECTED, API_FAILURE, RETRY_ATTEMPT, ESCALATED
     description: str
     metadata: Dict[str, Any] = {}
     timestamp: str
+    organization_id: Optional[str] = None
+    actor_user_id: Optional[str] = None  # None for system-initiated events
+    resource_type: Optional[str] = None  # DISPUTE, USER, ORGANIZATION
+    resource_id: Optional[str] = None
+    # Resolved from users at read time; not stored on the event
+    actor_name: Optional[str] = None
+    actor_email: Optional[str] = None

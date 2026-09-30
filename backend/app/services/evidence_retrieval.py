@@ -18,9 +18,9 @@ class EvidenceRetrievalService:
         ]
 
     @staticmethod
-    def retrieve_evidence(dispute_id: str) -> List[Evidence]:
-        """Retrieves all evidence records associated with the dispute ID."""
-        return get_evidence_by_dispute_id(dispute_id)
+    def retrieve_evidence(dispute_id: str, *, organization_id: str) -> List[Evidence]:
+        """Retrieves all evidence records associated with the dispute ID within the tenant."""
+        return get_evidence_by_dispute_id(dispute_id, organization_id=organization_id)
 
     @staticmethod
     def map_evidence_states(

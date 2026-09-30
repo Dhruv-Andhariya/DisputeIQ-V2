@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { fetchDisputes, fetchEvaluationSummary } from '../api';
 import StatusBadge from '../components/StatusBadge';
-import { Search, Filter, ShieldCheck, AlertTriangle, ArrowRight, BarChart2, CheckCircle2, UserCheck, XCircle, Sparkles, RefreshCw } from 'lucide-react';
+import { humanize, formatINR } from '../utils/format';
+import { Search, AlertTriangle, ArrowRight, BarChart2, CheckCircle2, UserCheck, Sparkles, Layers, X } from 'lucide-react';
 
 export default function DisputeList({ onSelectDispute }) {
   const [disputes, setDisputes] = useState([]);
@@ -33,7 +35,7 @@ export default function DisputeList({ onSelectDispute }) {
   const loadEvalSummary = async () => {
     try {
       const res = await fetchEvaluationSummary();
-      if (res.data && res.data.status !== 'NOT_RUN') {
+      if (res.data && !['NOT_RUN', 'NOT_AVAILABLE'].includes(res.data.status)) {
         setEvalSummary(res.data);
       }
     } catch (e) {
@@ -61,100 +63,90 @@ export default function DisputeList({ onSelectDispute }) {
     reviewNeeded: disputes.filter(d => d.status === 'HUMAN_REVIEW').length,
   };
 
+  const statCards = [
+    { label: 'Total Disputes', value: stats.total, note: 'Synthetic Dataset (Seed 42)', icon: Layers, tone: 'text-ink-muted' },
+    { label: 'Strong Cases', value: stats.strong, note: 'High Evidence Readiness', icon: CheckCircle2, tone: 'text-emerald-400' },
+    { label: 'Contradictions', value: stats.contradictory, note: 'Order ID / Amount Conflicts', icon: AlertTriangle, tone: 'text-rose-400' },
+    { label: 'Human Review', value: stats.reviewNeeded, note: 'Auto Action Blocked', icon: UserCheck, tone: 'text-amber-400' },
+  ];
+
+  const metrics = evalSummary
+    ? [
+        { label: 'Accuracy', value: evalSummary.metrics.recommendation_accuracy, tone: 'text-emerald-400' },
+        { label: 'False Contest', value: evalSummary.metrics.false_contest_rate, tone: 'text-rose-400' },
+        { label: 'False Acceptance', value: evalSummary.metrics.false_acceptance_rate, tone: 'text-amber-400' },
+        { label: 'Escalation', value: evalSummary.metrics.human_escalation_rate, tone: 'text-blue-400' },
+      ]
+    : [];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      
-      {/* Hero Banner */}
-      <div className="relative glass-panel rounded-3xl p-8 shadow-2xl overflow-hidden border border-[#1b2a47]">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-600/20 via-indigo-600/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
 
-        <div className="flex flex-wrap items-center justify-between gap-6 relative z-10">
-          <div className="space-y-2 max-w-3xl">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 font-mono text-xs">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Razorpay Track 2 — AI Risk Manager</span>
-            </div>
-            <h1 className="text-3xl font-extrabold text-white tracking-tight sm:text-4xl">
-              Dispute Investigation & Risk Intelligence
-            </h1>
-            <p className="text-sm text-slate-300 leading-relaxed font-sans">
-              Automated evidence verification, lifecycle timeline reconstruction, and bounded AI decision policy for merchant chargebacks.
-            </p>
+      {/* Page Header */}
+      <header className="flex flex-wrap items-end justify-between gap-6 pb-2">
+        <div className="max-w-3xl space-y-3">
+          <div className="chip">
+            <Sparkles className="h-3.5 w-3.5 text-accent-soft" />
+            <span>AI Risk Manager</span>
           </div>
-
-          {evalSummary && (
-            <button
-              onClick={() => setShowEvalModal(true)}
-              className="flex items-center space-x-2.5 px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white shadow-glow-blue hover:brightness-110 transition-all font-mono text-xs font-bold active:scale-95 shrink-0"
-            >
-              <BarChart2 className="w-4 h-4 text-blue-300" />
-              <span>View Benchmark Evaluation ({evalSummary.metrics.recommendation_accuracy} Acc)</span>
-            </button>
-          )}
+          <h1 className="text-2xl font-semibold sm:text-[28px] sm:leading-9">
+            Dispute Investigation &amp; Risk Intelligence
+          </h1>
+          <p className="max-w-2xl text-[15px] leading-6 text-ink-muted">
+            Automated evidence verification, lifecycle timeline reconstruction, and bounded AI decision policy for merchant chargebacks.
+          </p>
         </div>
-      </div>
+
+        {evalSummary && (
+          <button onClick={() => setShowEvalModal(true)} className="btn btn-secondary">
+            <BarChart2 className="h-4 w-4 text-accent-soft" />
+            <span>View Benchmark Evaluation</span>
+            <span className="rounded bg-emerald-500/10 px-1.5 py-px text-xs font-semibold tabular-nums text-emerald-300">
+              {evalSummary.metrics.recommendation_accuracy}
+            </span>
+          </button>
+        )}
+      </header>
 
       {/* Metrics Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="glass-panel p-5 rounded-2xl shadow-xl space-y-1">
-          <div className="text-xs font-mono text-slate-400">Total Disputes</div>
-          <div className="text-3xl font-extrabold text-white font-mono">{stats.total}</div>
-          <div className="text-[11px] text-slate-500 font-mono">Synthetic Dataset (Seed 42)</div>
-        </div>
-        
-        <div className="glass-panel p-5 rounded-2xl shadow-xl space-y-1 border-emerald-500/30 bg-emerald-950/10">
-          <div className="text-xs font-mono text-emerald-400 flex items-center space-x-1.5 font-bold">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Strong Cases</span>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {statCards.map(({ label, value, note, icon: Icon, tone }) => (
+          <div key={label} className="card p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-medium text-ink-muted">{label}</span>
+              <Icon className={`h-4 w-4 ${tone}`} />
+            </div>
+            <div className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-ink">{value}</div>
+            <div className="mt-1 text-xs text-ink-subtle">{note}</div>
           </div>
-          <div className="text-3xl font-extrabold text-emerald-300 font-mono">{stats.strong}</div>
-          <div className="text-[11px] text-slate-400 font-mono">High Evidence Readiness</div>
-        </div>
-
-        <div className="glass-panel p-5 rounded-2xl shadow-xl space-y-1 border-rose-500/30 bg-rose-950/10">
-          <div className="text-xs font-mono text-rose-400 flex items-center space-x-1.5 font-bold">
-            <AlertTriangle className="w-4 h-4" />
-            <span>Contradictions</span>
-          </div>
-          <div className="text-3xl font-extrabold text-rose-300 font-mono">{stats.contradictory}</div>
-          <div className="text-[11px] text-slate-400 font-mono">Order ID / Amount Conflicts</div>
-        </div>
-
-        <div className="glass-panel p-5 rounded-2xl shadow-xl space-y-1 border-amber-500/30 bg-amber-950/10">
-          <div className="text-xs font-mono text-amber-400 flex items-center space-x-1.5 font-bold">
-            <UserCheck className="w-4 h-4" />
-            <span>Human Review</span>
-          </div>
-          <div className="text-3xl font-extrabold text-amber-300 font-mono">{stats.reviewNeeded}</div>
-          <div className="text-[11px] text-slate-400 font-mono">Auto Action Blocked</div>
-        </div>
+        ))}
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 glass-panel p-4 rounded-2xl">
-        <div className="relative flex-1 min-w-[260px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative min-w-[260px] flex-1 lg:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search dispute ID, payment reference, or archetype..."
-            className="w-full bg-[#070b14] border border-[#1b2a47] rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono transition-all placeholder:text-slate-500"
+            className="input h-9 pl-9"
           />
         </div>
 
-        <div className="flex items-center space-x-1.5 overflow-x-auto py-1">
+        <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-line bg-surface p-1">
           {caseTypes.map((type) => (
             <button
               key={type}
               onClick={() => setFilterType(type)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-mono font-semibold transition-all ${
+              className={`h-7 whitespace-nowrap rounded-md px-3 text-[13px] font-medium transition-colors ${
                 filterType === type
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 border border-blue-400/40'
-                  : 'bg-[#070b14] text-slate-400 hover:bg-[#152238] hover:text-slate-200 border border-[#1b2a47]'
+                  ? 'bg-raised-hover text-ink shadow-sm'
+                  : 'text-ink-muted hover:text-ink'
               }`}
             >
-              {type.replace(/_/g, ' ')}
+              {humanize(type)}
             </button>
           ))}
         </div>
@@ -162,67 +154,66 @@ export default function DisputeList({ onSelectDispute }) {
 
       {/* Disputes Table */}
       {loading ? (
-        <div className="text-center py-20 glass-panel rounded-2xl">
-          <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-xs font-mono text-slate-400">Loading dispute records...</p>
+        <div className="card flex flex-col items-center justify-center py-20">
+          <div className="spinner mb-3" />
+          <p className="text-sm text-ink-muted">Loading dispute records...</p>
         </div>
       ) : error ? (
-        <div className="p-6 bg-rose-950/30 border border-rose-500/40 rounded-2xl text-center text-rose-300 text-xs font-mono">
-          {error}
+        <div className="panel-danger flex items-center justify-center gap-2 p-6 text-sm text-rose-300">
+          <AlertTriangle className="h-4 w-4" />
+          <span>{error}</span>
         </div>
       ) : (
-        <div className="glass-panel rounded-2xl shadow-2xl overflow-hidden">
+        <div className="card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full border-collapse text-left">
               <thead>
-                <tr className="bg-[#070b14]/90 text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider border-b border-[#1b2a47]">
-                  <th className="py-4 px-5">Dispute ID</th>
-                  <th className="py-4 px-5">Payment Ref</th>
-                  <th className="py-4 px-5">Claim Amount</th>
-                  <th className="py-4 px-5">Dispute Category</th>
-                  <th className="py-4 px-5">Archetype</th>
-                  <th className="py-4 px-5">Status</th>
-                  <th className="py-4 px-5 text-right">Action</th>
+                <tr className="border-b border-line bg-raised/50">
+                  {['Dispute ID', 'Payment Ref', 'Claim Amount', 'Dispute Category', 'Archetype', 'Status'].map((h) => (
+                    <th key={h} className="eyebrow whitespace-nowrap px-5 py-3 font-medium">{h}</th>
+                  ))}
+                  <th className="eyebrow px-5 py-3 text-right font-medium">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1b2a47]/60 text-xs">
+              <tbody className="divide-y divide-line text-sm">
                 {filtered.map((d) => (
-                  <tr key={d.dispute_id} className="hover:bg-[#152238]/60 transition-colors group">
-                    <td className="py-4 px-5 font-mono font-bold text-blue-400 group-hover:text-blue-300">
+                  <tr key={d.dispute_id} className="group transition-colors hover:bg-raised/60">
+                    <td className="mono-id whitespace-nowrap px-5 py-3.5 font-medium text-accent-soft">
                       {d.dispute_id}
                     </td>
-                    <td className="py-4 px-5 font-mono text-slate-300">
+                    <td className="mono-id whitespace-nowrap px-5 py-3.5 text-ink-muted">
                       {d.payment_id}
                     </td>
-                    <td className="py-4 px-5 font-mono font-semibold text-slate-100">
-                      ₹{d.amount.toLocaleString('en-IN')}
+                    <td className="whitespace-nowrap px-5 py-3.5 font-medium tabular-nums text-ink">
+                      {formatINR(d.amount)}
                     </td>
-                    <td className="py-4 px-5 text-slate-300 font-sans">
+                    <td className="px-5 py-3.5 text-ink-muted">
                       {d.reason}
                     </td>
-                    <td className="py-4 px-5">
-                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold border ${
-                        d.case_type === 'STRONG_CASE' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' :
-                        d.case_type === 'CONTRADICTORY_CASE' ? 'bg-rose-500/10 text-rose-300 border-rose-500/30' :
-                        'bg-amber-500/10 text-amber-300 border-amber-500/30'
-                      }`}>
-                        {d.case_type}
-                      </span>
+                    <td className="px-5 py-3.5">
+                      <StatusBadge status={d.case_type} type="case" />
                     </td>
-                    <td className="py-4 px-5">
+                    <td className="px-5 py-3.5">
                       <StatusBadge status={d.status} />
                     </td>
-                    <td className="py-4 px-5 text-right">
-                      <button
-                        onClick={() => onSelectDispute(d.dispute_id)}
-                        className="px-3.5 py-1.5 rounded-xl bg-blue-600/15 text-blue-300 border border-blue-500/30 hover:bg-blue-600 hover:text-white transition-all text-xs font-mono font-semibold inline-flex items-center space-x-1.5 shadow-sm"
+                    <td className="px-5 py-3.5 text-right">
+                      <Link
+                        to={`/disputes/${d.dispute_id}`}
+                        className="btn btn-sm btn-secondary group-hover:border-accent/40 group-hover:text-accent-soft"
                       >
                         <span>Investigate</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
+                        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                      </Link>
                     </td>
                   </tr>
                 ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-14 text-center text-sm text-ink-muted">
+                      No disputes match your search or filter.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -231,50 +222,42 @@ export default function DisputeList({ onSelectDispute }) {
 
       {/* Evaluation Modal */}
       {showEvalModal && evalSummary && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel border border-[#1b2a47] rounded-3xl max-w-2xl w-full p-7 space-y-6 max-h-[90vh] overflow-y-auto shadow-2xl relative">
-            <div className="flex items-center justify-between border-b border-[#1b2a47] pb-4">
-              <h3 className="text-lg font-bold text-white font-mono flex items-center space-x-2.5">
-                <BarChart2 className="w-5 h-5 text-blue-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-line bg-surface shadow-pop">
+            <div className="flex items-center justify-between border-b border-line px-6 py-4">
+              <h3 className="flex items-center gap-2.5 text-base font-semibold">
+                <BarChart2 className="h-5 w-5 text-accent-soft" />
                 <span>Held-Out Benchmark Evaluation Report</span>
               </h3>
               <button
                 onClick={() => setShowEvalModal(false)}
-                className="text-slate-400 hover:text-white font-mono text-sm px-2 py-1 rounded bg-[#070b14]"
+                className="btn btn-ghost btn-icon"
+                aria-label="Close"
               >
-                ✕
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center font-mono">
-              <div className="bg-[#070b14] p-3.5 rounded-2xl border border-[#1b2a47]">
-                <div className="text-[11px] text-slate-400 font-bold uppercase">Accuracy</div>
-                <div className="text-2xl font-black text-emerald-400 mt-1">{evalSummary.metrics.recommendation_accuracy}</div>
+            <div className="space-y-5 p-6">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {metrics.map((m) => (
+                  <div key={m.label} className="inset-panel p-4">
+                    <div className="eyebrow">{m.label}</div>
+                    <div className={`mt-1.5 text-2xl font-semibold tabular-nums ${m.tone}`}>{m.value}</div>
+                  </div>
+                ))}
               </div>
-              <div className="bg-[#070b14] p-3.5 rounded-2xl border border-[#1b2a47]">
-                <div className="text-[11px] text-slate-400 font-bold uppercase">False Contest</div>
-                <div className="text-2xl font-black text-rose-400 mt-1">{evalSummary.metrics.false_contest_rate}</div>
-              </div>
-              <div className="bg-[#070b14] p-3.5 rounded-2xl border border-[#1b2a47]">
-                <div className="text-[11px] text-slate-400 font-bold uppercase">False Acceptance</div>
-                <div className="text-2xl font-black text-amber-400 mt-1">{evalSummary.metrics.false_acceptance_rate}</div>
-              </div>
-              <div className="bg-[#070b14] p-3.5 rounded-2xl border border-[#1b2a47]">
-                <div className="text-[11px] text-slate-400 font-bold uppercase">Escalation</div>
-                <div className="text-2xl font-black text-blue-400 mt-1">{evalSummary.metrics.human_escalation_rate}</div>
+
+              <div>
+                <h4 className="eyebrow mb-2">Confusion Matrix</h4>
+                <div className="code-block text-accent-soft">
+                  <pre>{JSON.stringify(evalSummary.confusion_matrix, null, 2)}</pre>
+                </div>
               </div>
             </div>
 
-            <div className="bg-[#070b14] p-4 rounded-2xl border border-[#1b2a47] font-mono text-xs text-slate-300">
-              <h4 className="font-bold text-slate-400 mb-2 uppercase text-[11px]">Confusion Matrix</h4>
-              <pre className="text-blue-300">{JSON.stringify(evalSummary.confusion_matrix, null, 2)}</pre>
-            </div>
-
-            <div className="text-right">
-              <button
-                onClick={() => setShowEvalModal(false)}
-                className="px-5 py-2.5 rounded-xl bg-[#152238] text-slate-200 text-xs font-mono font-bold hover:bg-slate-800"
-              >
+            <div className="flex justify-end border-t border-line px-6 py-4">
+              <button onClick={() => setShowEvalModal(false)} className="btn btn-secondary">
                 Close Report
               </button>
             </div>

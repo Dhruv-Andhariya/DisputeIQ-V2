@@ -1,78 +1,129 @@
-import React from 'react';
-import { ShieldCheck, Cpu, Terminal, AlertTriangle, Zap, Sparkles, Layers } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link, NavLink, useMatch, useNavigate } from 'react-router-dom';
+import { ShieldCheck, AlertTriangle, LayoutGrid, Home, Users, Database, LogOut } from 'lucide-react';
+import { useAuth, PERMISSIONS } from '../auth/AuthContext';
+import { triggerDemoFailure } from '../api';
 
-export default function Navbar({ activePage, setActivePage, onTriggerFailure, currentDisputeId }) {
+const PRINCIPLES = [
+  { key: 'Code', value: 'Correctness', dot: 'bg-emerald-400' },
+  { key: 'AI', value: 'Reasoning', dot: 'bg-blue-400' },
+  { key: 'Human', value: 'Judgment', dot: 'bg-amber-400' },
+];
+
+const navClass = ({ isActive }) =>
+  `btn btn-sm ${isActive ? 'bg-raised text-ink border border-line' : 'btn-ghost'}`;
+
+export default function Navbar() {
+  const { user, organization, can, logout } = useAuth();
+  const navigate = useNavigate();
+  const disputeMatch = useMatch('/disputes/:disputeId');
+  const currentDisputeId = disputeMatch?.params.disputeId;
+  const [simulating, setSimulating] = useState(false);
+
+  const handleTriggerFailure = async () => {
+    setSimulating(true);
+    try {
+      await triggerDemoFailure(currentDisputeId);
+      // New state value makes InvestigationDetail reload the (now failed) investigation
+      navigate(`/disputes/${currentDisputeId}`, { replace: true, state: { refresh: Date.now() } });
+    } catch {
+      alert('Failed to simulate system failure scenario.');
+    } finally {
+      setSimulating(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
+
   return (
-    <nav className="sticky top-0 z-50 bg-[#070b14]/85 backdrop-blur-xl border-b border-[#1b2a47]/80 shadow-2xl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          
+    <nav className="sticky top-0 z-50 border-b border-line bg-canvas/80 backdrop-blur-lg">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between gap-4">
+
           {/* Logo & Brand Identity */}
-          <div 
-            className="flex items-center space-x-3 cursor-pointer group" 
-            onClick={() => setActivePage('list')}
+          <Link
+            to="/"
+            className="group flex items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
           >
-            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-blue-600/30 group-hover:shadow-blue-500/50 transition-all duration-300">
-              <div className="w-full h-full bg-[#070b14] rounded-[10px] flex items-center justify-center">
-                <ShieldCheck className="w-5 h-5 text-blue-400 group-hover:scale-110 transition-transform duration-300" />
-              </div>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-white shadow-sm">
+              <ShieldCheck className="h-5 w-5" />
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-extrabold text-xl tracking-tight text-white group-hover:text-blue-400 transition-colors">
-                  DisputeIQ
-                </span>
-                <span className="text-[10px] font-mono font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/30">
+            <div className="hidden leading-tight sm:block">
+              <div className="flex items-center gap-2">
+                <span className="text-[15px] font-semibold tracking-tight text-ink">DisputeIQ</span>
+                <span className="rounded border border-line bg-raised px-1.5 py-px text-2xs font-medium text-ink-muted">
                   AI Risk Manager
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-mono tracking-tight">
-                Razorpay Evidence Intelligence Layer
-              </p>
+              <p className="text-xs text-ink-subtle">Evidence Intelligence Layer</p>
             </div>
-          </div>
+          </Link>
 
-          {/* Architecture Philosophy Pill */}
-          <div className="hidden lg:flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#0e1626] border border-[#1b2a47] text-xs font-mono shadow-inner">
-            <span className="flex items-center space-x-1 text-emerald-400 font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>CODE</span>
-            </span>
-            <span className="text-slate-600">=</span>
-            <span className="text-slate-300">Correctness</span>
-            <span className="text-slate-600">•</span>
-            <span className="text-blue-400 font-semibold">AI</span>
-            <span className="text-slate-600">=</span>
-            <span className="text-slate-300">Reasoning</span>
-            <span className="text-slate-600">•</span>
-            <span className="text-amber-400 font-semibold">HUMAN</span>
-            <span className="text-slate-600">=</span>
-            <span className="text-slate-300">Judgment</span>
+          {/* Architecture Philosophy */}
+          <div className="hidden items-center divide-x divide-line rounded-lg border border-line bg-surface 2xl:flex">
+            {PRINCIPLES.map((p) => (
+              <div key={p.key} className="flex items-center gap-2 px-3 py-1.5 text-xs">
+                <span className={`h-1.5 w-1.5 rounded-full ${p.dot}`} />
+                <span className="font-semibold text-ink">{p.key}</span>
+                <span className="text-ink-subtle">=</span>
+                <span className="text-ink-muted">{p.value}</span>
+              </div>
+            ))}
           </div>
 
           {/* Navigation & Action Controls */}
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => setActivePage('list')}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold font-mono tracking-wide transition-all ${
-                activePage === 'list'
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30 border border-blue-400/30'
-                  : 'text-slate-300 hover:bg-[#152238] hover:text-white border border-transparent'
-              }`}
-            >
-              Dispute Dashboard
-            </button>
+          <div className="flex items-center gap-2">
+            <NavLink to="/" end className={navClass}>
+              <Home className="h-4 w-4" />
+              <span className="hidden md:inline">Dashboard</span>
+            </NavLink>
+            <NavLink to="/disputes" className={navClass}>
+              <LayoutGrid className="h-4 w-4" />
+              <span className="hidden md:inline">Disputes</span>
+            </NavLink>
+            <NavLink to="/merchant-data" className={navClass}>
+              <Database className="h-4 w-4" />
+              <span className="hidden md:inline">Merchant Data</span>
+            </NavLink>
+            {can(PERMISSIONS.MANAGE_USERS) && (
+              <NavLink to="/team" className={navClass}>
+                <Users className="h-4 w-4" />
+                <span className="hidden md:inline">Team</span>
+              </NavLink>
+            )}
 
-            {currentDisputeId && (
+            {currentDisputeId && can(PERMISSIONS.INVESTIGATE) && (
               <button
-                onClick={() => onTriggerFailure(currentDisputeId)}
-                className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold font-mono bg-rose-500/10 text-rose-300 border border-rose-500/40 hover:bg-rose-500/20 hover:border-rose-500/60 shadow-lg shadow-rose-950/40 transition-all active:scale-95"
+                onClick={handleTriggerFailure}
+                disabled={simulating}
+                className="btn btn-sm btn-danger"
                 title="Demonstrate Scenario 3: External Carrier Logistics API Failure"
               >
-                <AlertTriangle className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
-                <span>Simulate System Failure</span>
+                <AlertTriangle className="h-4 w-4" />
+                <span className="hidden lg:inline">Simulate System Failure</span>
               </button>
             )}
+
+            {/* Current identity */}
+            <div className="ml-2 flex items-center gap-3 border-l border-line pl-4">
+              <div className="hidden text-right leading-tight sm:block">
+                <div className="max-w-[180px] truncate text-[13px] font-medium text-ink" title={organization.name}>
+                  {organization.name}
+                </div>
+                <div className="flex items-center justify-end gap-1.5 text-xs text-ink-subtle">
+                  <span className="max-w-[120px] truncate">{user.name}</span>
+                  <span className="rounded border border-line bg-raised px-1 py-px text-2xs font-semibold text-ink-muted">
+                    {user.role}
+                  </span>
+                </div>
+              </div>
+              <button onClick={handleLogout} className="btn btn-ghost btn-icon" title="Sign out" aria-label="Sign out">
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
         </div>

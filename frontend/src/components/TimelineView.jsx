@@ -1,6 +1,8 @@
 import React from 'react';
 import { GitCommit, ShoppingBag, CreditCard, Receipt, Truck, CheckCircle2, MessageSquare, AlertOctagon } from 'lucide-react';
 import StatusBadge from './StatusBadge';
+import CardHeader from './CardHeader';
+import { humanize } from '../utils/format';
 
 export default function TimelineView({ timeline }) {
   const getEventIcon = (eventType) => {
@@ -17,74 +19,66 @@ export default function TimelineView({ timeline }) {
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h3 className="text-base font-bold text-slate-100 flex items-center space-x-2">
-            <GitCommit className="w-5 h-5 text-indigo-400" />
-            <span>Transaction Lifecycle Timeline</span>
-          </h3>
-          <p className="text-xs text-slate-400 font-mono mt-0.5">
-            Chronological reconstruction derived exclusively from verified system records
-          </p>
-        </div>
-        <span className="text-xs font-mono px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">
-          Deterministic Timeline
-        </span>
-      </div>
+    <section className="card">
+      <CardHeader
+        icon={GitCommit}
+        tone="violet"
+        title="Transaction Lifecycle Timeline"
+        subtitle="Chronological reconstruction derived exclusively from verified system records"
+      />
 
-      <div className="relative border-l-2 border-slate-800 ml-4 space-y-6">
-        {timeline.map((evt, idx) => {
-          const Icon = getEventIcon(evt.event_type);
-          const isContradicted = evt.verification_state === 'CONTRADICTED';
-          const isDispute = evt.event_type === 'DISPUTE_FILED';
+      <div className="card-body">
+        <ol className="relative">
+          {timeline.map((evt, idx) => {
+            const Icon = getEventIcon(evt.event_type);
+            const isContradicted = evt.verification_state === 'CONTRADICTED';
+            const isDispute = evt.event_type === 'DISPUTE_FILED';
+            const isLast = idx === timeline.length - 1;
 
-          return (
-            <div key={idx} className="relative pl-7 group">
-              {/* Timeline node icon */}
-              <div
-                className={`absolute -left-3 top-0 w-6 h-6 rounded-full flex items-center justify-center border text-xs ${
-                  isContradicted
-                    ? 'bg-rose-900 text-rose-300 border-rose-500 ring-4 ring-rose-500/10'
-                    : isDispute
-                    ? 'bg-amber-900 text-amber-300 border-amber-500 ring-4 ring-amber-500/10'
-                    : 'bg-slate-800 text-blue-400 border-slate-700 group-hover:border-blue-500'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-              </div>
+            return (
+              <li key={idx} className="relative flex gap-3.5 pb-6 last:pb-0">
+                {/* Connector line */}
+                {!isLast && <span className="absolute left-[13px] top-8 bottom-0 w-px bg-line" />}
 
-              {/* Event card */}
-              <div
-                className={`p-3.5 rounded-lg border transition-all ${
-                  isContradicted
-                    ? 'bg-rose-950/20 border-rose-500/40'
-                    : isDispute
-                    ? 'bg-amber-950/20 border-amber-500/30'
-                    : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
-                }`}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs font-bold font-mono text-slate-200 uppercase tracking-wider">
-                      {evt.event_type.replace(/_/g, ' ')}
-                    </span>
-                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
-                      {evt.source}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs font-mono text-slate-400">{evt.timestamp}</span>
-                    <StatusBadge status={evt.verification_state} type="evidence" />
-                  </div>
+                {/* Timeline node icon */}
+                <div
+                  className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${
+                    isContradicted
+                      ? 'border-rose-500/40 bg-rose-500/15 text-rose-300'
+                      : isDispute
+                      ? 'border-amber-500/40 bg-amber-500/15 text-amber-300'
+                      : 'border-line bg-raised text-ink-muted'
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
                 </div>
 
-                <p className="mt-2 text-xs text-slate-300 font-sans">{evt.description}</p>
-              </div>
-            </div>
-          );
-        })}
+                {/* Event content */}
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                    <span
+                      className={`text-sm font-medium ${
+                        isContradicted ? 'text-rose-300' : isDispute ? 'text-amber-300' : 'text-ink'
+                      }`}
+                    >
+                      {humanize(evt.event_type)}
+                    </span>
+                    <StatusBadge status={evt.verification_state} type="evidence" />
+                  </div>
+
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-subtle">
+                    <span className="tabular-nums">{evt.timestamp}</span>
+                    <span className="h-0.5 w-0.5 rounded-full bg-ink-subtle" />
+                    <span>{humanize(evt.source)}</span>
+                  </div>
+
+                  <p className="mt-1.5 text-[13px] leading-5 text-ink-muted">{evt.description}</p>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
       </div>
-    </div>
+    </section>
   );
 }

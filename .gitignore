@@ -21,6 +21,13 @@ node_modules/
 dist/
 .vite/
 
+# Local evidence artifacts
+storage/
+
 # System / OS
 .DS_Store
 Thumbs.db
+
+# SQLite WAL side files
+*.db-wal
+*.db-shm

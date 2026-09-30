@@ -1,7 +1,7 @@
 # DisputeIQ: Product & Engineering Specification
 
 ## 1. Executive Summary
-**DisputeIQ** is an AI-powered dispute investigation and evidence intelligence layer that operates on top of payment and dispute infrastructure (such as Razorpay).
+**DisputeIQ** is an AI-powered dispute investigation and evidence intelligence layer that operates on top of payment and dispute infrastructure (such as Razorpay, Paypal).
 Instead of simply notifying merchants that a dispute has been raised, DisputeIQ provides automated, deterministic evidence verification, timeline reconstruction, AI-assisted reasoning, and human-in-the-loop decision controls.
 
 ## 2. Core Architecture Philosophy
